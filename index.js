@@ -74,6 +74,90 @@ function sendTo(message, userId) {
     });
 }
 
+function handleWentWellVote(response, votedItemsByUser, wentWellItemIds, itemId, userId) {
+    const wentWellItemVoteCountForUser = _.intersection(votedItemsByUser, wentWellItemIds).length;
+
+    if (wentWellItemVoteCountForUser < state.session.wentWellVoteLimit) {
+        store.dispatch(upVote(userId, itemId));
+        response.send({ok: true, message: {messageCode: 'vote.dispatched'}});
+    } else {
+        response.status(400);
+        response.send({
+            errors: [
+                {errorCode: 'all.available.vote.in.went.well.category.is.used', description: 'Item is neither in went well nor in to be improved category.'}
+            ]
+        });
+    }
+}
+
+function handleToBeImprovedVote(response, votedItemsByUser, toBeImprovedItemIds, itemId, userId) {
+    const toBeImprovedItemVoteCountForUser = _.intersection(votedItemsByUser, toBeImprovedItemIds).length;
+
+    if (toBeImprovedItemVoteCountForUser < state.session.toBeImprovedVoteLimit) {
+        store.dispatch(upVote(userId, itemId));
+        response.send({ok: true, message: {messageCode: 'vote.dispatched'}});
+    } else {
+        response.status(400);
+        response.send({
+            errors: [
+                {errorCode: 'all.available.vote.in.to.be.improved.category.is.used', description: 'Item is neither in went well nor in to be improved category.'}
+            ]
+        });
+    }
+}
+
+function handleUncategorizedVote(response) {
+    response.status(400);
+    response.send({
+        errors: [
+            {errorCode: 'item.cannot.be.categorized', description: 'Item is neither in went well nor in to be improved category.'}
+        ]
+    });
+}
+
+function voteWithOpenSession(request, response) {
+
+    const itemId = parseInt(request.params.itemId);
+    const userId = request.params.userId;
+
+    const state = store.getState();
+
+    const votedItemsByUser = _
+        .chain(state.votes)
+        .filter((vote) => vote.userId === userId)
+        .map((vote) => vote.itemId)
+        .value();
+
+    const wentWellItemIds = _.map(state.session.wentWellItems, 'id');
+    const toBeImprovedItemIds = _.map(state.session.toBeImprovedItems, 'id');
+
+    console.log(wentWellItemIds, toBeImprovedItemIds, itemId);
+
+    const isInWentWellCategory = _.filter(wentWellItemIds, (wentWellItemId) => itemId === wentWellItemId).length > 0;
+    const isInToBeImprovedCategory = _.filter(toBeImprovedItemIds, (toBeImprovedItemId) => itemId === toBeImprovedItemId).length > 0;
+
+    if (isInWentWellCategory) {
+        handleWentWellVote(response, votedItemsByUser, wentWellItemIds, itemId, userId);
+    } else if (isInToBeImprovedCategory) {
+        handleToBeImprovedVote(response, votedItemsByUser, toBeImprovedItemIds, itemId, userId);
+    } else {
+        handleUncategorizedVote(response);
+    }
+}
+
+function handleSessionNotOpened(response) {
+    response.status(400);
+    response.send({
+        errors: [
+            {errorCode: 'session.is.not.opened', description: `Session is not opened (${state.session.status}).`}
+        ]
+    })
+}
+
+Array.prototype.diff = function(a) {
+    return this.filter(function(i) {return a.indexOf(i) < 0;});
+};
+
 let state = store.getState();
 store.subscribe(() => {
     let newState = store.getState();
@@ -85,7 +169,22 @@ store.subscribe(() => {
             to: newState.session.status
         });
     } else if (state.session.users.connected.length !== newState.session.users.connected.length) {
-        broadcast({message: `participant list has changed (${newState.session.users.connected.length})`});
+        if (state.session.users.connected.length < newState.session.users.connected.length) {
+            // user(s) left
+            var removedUsers = newState.session.users.connected.length.diff(state.session.users.connected.length);
+            broadcast({
+                message: `participant list has changed (${newState.session.users.connected.length})`,
+                removedUsers: removedUsers
+            });
+        } else {
+            // user(s) joined
+            var addedUsers = state.session.users.connected.length.diff(newState.session.users.connected.length);
+            broadcast({
+                message: `participant list has changed (${newState.session.users.connected.length})`,
+                addedUsers: addedUsers
+            });
+        }
+
         console.log(`Connected users: ${newState.session.users.connected}`);
 
     } else if ('' !== newState.session.users.recovered) {
@@ -110,72 +209,12 @@ rest.post('/session/close', (request, response) => {
     response.send({ok: true});
 });
 
-rest.put('/vote/:itemId/user-id/:userId', (request, response) => {
-    const itemId = parseInt(request.params.itemId);
-    const userId = request.params.userId;
-
-    const state = store.getState();
-
+rest.post('/vote/:itemId/user-id/:userId', (request, response) => {
     if (state.session.status === 'OPENED') {
-        const votedItemsByUser = _
-            .chain(state.votes)
-            .filter((vote) => vote.userId === userId)
-            .map((vote) => vote.itemId)
-            .value();
-
-        const wentWellItemIds = _.map(state.session.wentWellItems, 'id');
-        const toBeImprovedItemIds = _.map(state.session.toBeImprovedItems, 'id');
-
-        console.log(wentWellItemIds, toBeImprovedItemIds, itemId);
-
-        const isInWentWellCategory = _.filter(wentWellItemIds, (wentWellItemId) => itemId === wentWellItemId).length > 0;
-        const isInToBeImprovedCategory = _.filter(toBeImprovedItemIds, (toBeImprovedItemId) => itemId === toBeImprovedItemId).length > 0;
-
-        if (isInWentWellCategory) {
-            const wentWellItemVoteCountForUser = _.intersection(votedItemsByUser, wentWellItemIds).length;
-
-            if (wentWellItemVoteCountForUser < state.session.wentWellVoteLimit) {
-                store.dispatch(upVote(userId, itemId));
-                response.send({ok: true, message: {messageCode: 'vote.dispatched'}});
-            } else {
-                response.status(400);
-                response.send({
-                    errors: [
-                        {errorCode: 'all.available.vote.in.went.well.category.is.used', description: 'Item is neither in went well nor in to be improved category.'}
-                    ]
-                });
-            }
-        } else if (isInToBeImprovedCategory) {
-            const toBeImprovedItemVoteCountForUser = _.intersection(votedItemsByUser, toBeImprovedItemIds).length;
-
-            if (toBeImprovedItemVoteCountForUser < state.session.toBeImprovedVoteLimit) {
-                store.dispatch(upVote(userId, itemId));
-                response.send({ok: true, message: {messageCode: 'vote.dispatched'}});
-            } else {
-                response.status(400);
-                response.send({
-                    errors: [
-                        {errorCode: 'all.available.vote.in.to.be.improved.category.is.used', description: 'Item is neither in went well nor in to be improved category.'}
-                    ]
-                });
-            }
-        } else {
-            response.status(400);
-            response.send({
-                errors: [
-                    {errorCode: 'item.cannot.be.categorized', description: 'Item is neither in went well nor in to be improved category.'}
-                ]
-            });
-        }
+        voteWithOpenSession(request,response);
     } else {
-        response.status(400);
-        response.send({
-            errors: [
-                {errorCode: 'session.is.not.opened', description: `Session is not opened (${state.session.status}).`}
-            ]
-        })
+        handleSessionNotOpened(response);
     }
-
 });
 
 rest.delete('/vote/:itemId', (request, response) => {
