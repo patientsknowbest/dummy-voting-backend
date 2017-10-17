@@ -1,0 +1,163 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width">
+
+    <title>Backend test</title>
+
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/styles.css?v=1.0">
+    <style>
+      body {
+        background-image: none;
+        background-color: white;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <div class="messages">
+    </div>
+
+    <table>
+      <tr>
+        <td>
+          <ul>
+            <li>
+              <a href="#2">PRs</a>
+              <ul>
+                <li><a href="#12">new process</a></li>
+                <li><a href="#32">valuable feedbacks</a></li>
+              </ul>
+            </li>
+            <li><a href="#42">Tests</a></li>
+            <li><a href="#52">GDE</a></li>
+          </ul>
+        </td>
+        <td>
+          <ul>
+            <li>
+              <a href="#3">Test</a>
+              <ul>
+                <li><a href="#13">flaky tests</a></li>
+                <li><a href="#43">time consuming to write e2e tests</a></li>
+              </ul>
+            </li>
+            <li><a href="#53">PRs</a></li>
+          </ul>
+
+        </td>
+      </tr>
+    </table>
+
+    <a href="reset">Reset</a>
+
+    <script src="js/jquery.slim.js"></script>
+    <script src="js/bootstrap.js"></script>
+    <script>
+
+        $.urlParam = function (name) {
+            const results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+            return results[1] || 0;
+        };
+
+        const userId = $.urlParam('userId');
+
+        const socket = new WebSocket(`ws://localhost:1337/session/${userId}`);
+
+        socket.onopen = function (event) {
+            socket.send(JSON.stringify({
+                action: 'CONNECTING'
+            }));
+        };
+
+        socket.onmessage = function (event) {
+            const status = JSON.parse(event.data);
+
+            console.log(status);
+
+            if (status.action === 'RELOAD_PAGE') {
+                location.reload();
+            } else if (status.type === 'vote') {
+                if (status.success) {
+                    $('a[href="#' + status.itemId + '"]').addClass('voted-for');
+                } else {
+                    appendWarning(status.message);
+                }
+            } else if (status.type === 'revoke') {
+                if (status.success) {
+                    $('a[href="#' + status.itemId + '"]').removeClass('voted-for');
+                } else {
+                    appendWarning(status.message);
+                }
+            } else {
+                const isOrganizer = !!status.organizer && status.organizer.userId === userId;
+                console.log(isOrganizer ? 'organizer' : 'participant');
+            }
+        };
+
+        let warningCounter = 0;
+
+        function appendWarning(message) {
+
+            let id = 'warning-' + warningCounter;
+
+            const content = $(
+                '<div class="alert alert-danger" id="' + id + '">' +
+                '  <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
+                message +
+                '</div>');
+
+            $('.messages').append(content);
+
+            setTimeout(function () {
+                $('#' + id).alert('close');
+            }, 3000);
+        }
+
+        socket.onclose = function (event) {
+            appendWarning('  <strong>Oops!</strong> Server is gone. You need to <a href="">reload</a> page.');
+        };
+
+        $('ul a')
+            .each((index, anchor) => {
+                let $link = $(anchor);
+                const itemId = $link.attr('href').substring(1);
+
+                $link.click((event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    let voteFor = !$link.hasClass('voted-for');
+
+                    socket.send(JSON.stringify({
+                        action: voteFor ? 'VOTE' : 'REVOKE',
+                        itemId: itemId
+                    }));
+                });
+            });
+
+        $('a[href="reset"]').click((event) => {
+            event.stopPropagation();
+            event.preventDefault();
+
+            socket.send(JSON.stringify({
+                action: 'RESET'
+            }));
+        });
+
+        $('a[href="reload"]').click((event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            location.reload();
+        });
+
+        $(".alert").alert();
+
+    </script>
+  </body>
+</html>

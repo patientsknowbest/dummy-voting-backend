@@ -1,0 +1,162 @@
+html {
+    font-family: "Whitney SSm A", "Whitney SSm B", "Lato", "Lucida Grande", "Lucida Sans Unicode", Tahoma, Sans-Serif;
+    font-size: 1.2em;
+    font-weight: 400;
+    line-height: 1.5;
+    height: 100%;
+}
+
+body {
+    height: 100%;
+    background-color: #242425;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSczMDAnIGhlaWdodD0nMzAwJyB2aWV3Qm94PScwIDAgMTUwIDE1MCc+Cgk8ZmlsdGVyIGlkPSduJyB4PScwJyB5PScwJz4KCQk8ZmVUdXJidWxlbmNlIHR5cGU9J3R1cmJ1bGVuY2UnIGJhc2VGcmVxdWVuY3k9Jy43JyByZXN1bHQ9J2Z1enonIG51bU9jdGF2ZXM9JzInIHN0aXRjaFRpbGVzPSdzdGl0Y2gnLz4KCQk8ZmVDb21wb3NpdGUgaW49J1NvdXJjZUdyYXBoaWMnIGluMj0nZnV6eicgb3BlcmF0b3I9J2FyaXRobWV0aWMnIGsxPScwJyBrMj0nMC4zJyBrMz0nLTAuMTUnIGs0PScuMDEnIC8+Cgk8L2ZpbHRlcj4KCTxyZWN0IHdpZHRoPScxMDIlJyBoZWlnaHQ9JzEwMiUnIGZpbGw9JyMwNDA0MDQnLz4KCTxyZWN0IHg9Jy0xJScgeT0nLTElJyB3aWR0aD0nMTAyJScgaGVpZ2h0PScxMDIlJyBmaWxsPScjNTQ1NDU0JyBmaWx0ZXI9J3VybCgjbiknIG9wYWNpdHk9JzEnLz4KPC9zdmc+');
+}
+
+header {
+    align-items: center;
+    /*overflow: hidden;*/
+    border-bottom: 8px solid #ff9800;
+    /*border-bottom: 8px solid #0747A6;*/
+    display: flex;
+    -webkit-box-align: center;
+    box-sizing: border-box;
+    background-color: white;
+}
+
+header .logo {
+    -webkit-box-flex: 0;
+    -webkit-flex: 0 0 100px;
+    -moz-box-flex: 0;
+    -ms-flex: 0 0 100px;
+    flex: 0 0 100px;
+    text-align: center;
+    font-size: 2.8em;
+}
+
+header h1 {
+    -webkit-box-flex: 1;
+    flex: 1;
+}
+
+header .language-selector {
+    -webkit-box-flex: 0;
+    flex: 0 0 calc(100px + 2rem);
+}
+
+article {
+    color: white;
+    padding: 0.5em;
+}
+
+.content-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    /*grid-template-columns: 100px 1fr calc(300px + 2rem);*/
+    color: white;
+    padding: 0.5em;
+    font-size: 1.2em;
+}
+
+.content-wrapper article {
+    padding: 0.5em;
+}
+
+li {
+    /*line-height: 2em;*/
+    padding: .1em auto .1em auto;
+}
+
+li button.btn-default,
+li button.btn-default:hover,
+li button.btn-default:active,
+li button.btn-default:focus,
+li button.btn-default:active:focus{
+    position: relative;
+    top: -2px;
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+li button .fa {
+    color: white;
+}
+
+.fa-times {
+    color: #EE4938;
+}
+
+h2 .fa-rocket, .fa-thermometer-full {
+    color: #91c89c;
+}
+
+h2 .fa-road, .fa-thermometer-empty {
+    color: #d04437;
+}
+
+li button .fa {
+    font-size: 1.8em;
+}
+
+.fa-star, li button .fa-star, li button .fa-star-o {
+    color: #ff9800;
+}
+
+.fa-thermometer-three-quarters {
+    color: #ff9800;
+}
+
+.fa-asterisk {
+    color: white;
+}
+
+ul.vertical {
+    font-size: 1.3em;
+}
+
+ul.vertical li {
+    display: inline-block;
+    margin-left: 0;
+    list-style: none;
+    padding: .2em .5em;
+}
+
+header .fa-language {
+    font-size: 1.5em;
+}
+
+section h3 {
+    padding-top: .3em;
+    padding-bottom: .5em;
+}
+
+button {
+    color: black;
+}
+
+@media (max-width: 650px) {
+    .content-wrapper {
+        grid-template-columns: 1fr;
+    }
+
+    .content-wrapper {
+        font-size: 2em;
+    }
+
+    .content-wrapper ol, .content-wrapper ul, .content-wrapper li {
+        list-style-position: inside;
+    }
+
+    .content-wrapper ol, .content-wrapper ul {
+        padding-left: 0;
+    }
+    .content-wrapper li {
+        padding-left: .6em;
+        padding-top: .2em;
+        padding-bottom: .2em;
+    }
+}
+
+.voted-for::after {
+    content: '*';
+}
