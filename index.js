@@ -154,10 +154,6 @@ function handleSessionNotOpened(response) {
     })
 }
 
-Array.prototype.diff = function(a) {
-    return this.filter(function(i) {return a.indexOf(i) < 0;});
-};
-
 let state = store.getState();
 store.subscribe(() => {
     let newState = store.getState();
@@ -171,14 +167,14 @@ store.subscribe(() => {
     } else if (state.session.users.connected.length !== newState.session.users.connected.length) {
         if (state.session.users.connected.length < newState.session.users.connected.length) {
             // user(s) left
-            var removedUsers = newState.session.users.connected.length.diff(state.session.users.connected.length);
+            const removedUsers = _.difference(newState.session.users.connected, state.session.users.connected);
             broadcast({
                 message: `participant list has changed (${newState.session.users.connected.length})`,
                 removedUsers: removedUsers
             });
         } else {
             // user(s) joined
-            var addedUsers = state.session.users.connected.length.diff(newState.session.users.connected.length);
+            const addedUsers = _.difference(state.session.users.connected, newState.session.users.connected);
             broadcast({
                 message: `participant list has changed (${newState.session.users.connected.length})`,
                 addedUsers: addedUsers
