@@ -2,6 +2,7 @@
 
 const _ = require('lodash');
 const redux = require('redux');
+const subscriber = require('redux-subscriber');
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
@@ -13,41 +14,50 @@ const rest = express.Router();
 
 const wss = require('express-ws')(app);
 
-const openSession = require('./session/status/open-session');
-const closeSession = require('./session/status/close-session');
-const sessionState = require('./session/status/session-state');
+const openSession = require('./session/status/open-session.action');
+const closeSession = require('./session/status/close-session.action');
+const sessionState = require('./session/status/session-state.reducer');
 
-const userState = require('./session/users/user-state');
 const userConnecting = require('./session/users/user-connecting.action');
 const userDisconnecting = require('./session/users/user-disconnecting.action');
 const userUpdated = require('./session/users/recovered-user-updated.action');
-const upVote = require('./session/vote/upvote.action');
+const userRecovery = require('./session/users/user-recovery.middleware');
+const userState = require('./session/users/user-state.reducer');
 
-let userRecovery = require('./session/users/user-recovery.middleware');
+const upVote = require('./session/vote/upvote.action');
+const downVote = require('./session/vote/downvote.action');
+const voteState = require('./session/vote/vote-state.reducer');
 
 const initialState = require('./initial-state');
 
 const store = redux.createStore(redux.combineReducers({
+    // FIXME: this feels hacky:
     session: (session, action) => {
         if (!!session) {
             return {
+                // dynamic parts.
                 status: sessionState(session.status, action),
+                users: userState(session.users, action),
+                votes: voteState(session.votes, action),
+                // -- static parts.
                 wentWellItems: session.wentWellItems,
                 toBeImprovedItems: session.toBeImprovedItems,
-                users: userState(session.votes, session.users, action),
-                votes: session.votes,
                 wentWellVoteLimit: session.wentWellVoteLimit,
                 toBeImprovedVoteLimit: session.toBeImprovedVoteLimit
             }
         } else {
             return initialState.session;
         }
-
     },
     users: (users, action) => {
         return !!users ? users : initialState.users;
     }
 }), initialState, redux.applyMiddleware(userRecovery));
+
+
+const subscribe = subscriber.default(store);
+
+// redux.applyMiddleware(userRecovery)((state, action) => redux.createStore)(initialState);
 
 
 function broadcast(message) {
@@ -130,8 +140,6 @@ function handleVote(request, response) {
 
     const wentWellItemIds = _.map(state.session.wentWellItems, 'id');
     const toBeImprovedItemIds = _.map(state.session.toBeImprovedItems, 'id');
-
-    console.log(wentWellItemIds, toBeImprovedItemIds, itemId);
 
     const isInWentWellCategory = _.filter(wentWellItemIds, (wentWellItemId) => itemId === wentWellItemId).length > 0;
     const isInToBeImprovedCategory = _.filter(toBeImprovedItemIds, (toBeImprovedItemId) => itemId === toBeImprovedItemId).length > 0;
@@ -227,15 +235,30 @@ rest.post('/session/close', (request, response) => {
 });
 
 rest.post('/vote/:itemId/user-id/:userId', (request, response) => {
+    let unsubscribe = subscribe('session.resultOfLastVote', (state) => {
+        console.log(state.session.votes);
+        unsubscribe();
+    });
+
     if (state.session.status === 'OPENED') {
-        handleVote(request,response);
+        handleVote(request, response);
     } else {
         handleSessionNotOpened(response);
     }
 });
 
-rest.delete('/vote/:itemId', (request, response) => {
+rest.delete('/vote/:itemId/user-id/:userId', (request, response) => {
+    if (state.session.status === 'OPENED') {
 
+        const userId = parseInt(request.params.userId);
+        const itemId = parseInt(request.params.itemId);
+
+        // FIXME: validate state before dispatching event.
+        store.dispatch(downVote(userId, itemId));
+        response.send({ok: true});
+    } else {
+        handleSessionNotOpened(response);
+    }
 });
 
 app.use('/api', rest);

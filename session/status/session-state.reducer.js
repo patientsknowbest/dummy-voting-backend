@@ -1,7 +1,7 @@
 'use strict';
 
-const OPEN_SESSION = require('./open-session').OPEN_SESSION;
-const CLOSE_SESSION = require('./close-session').CLOSE_SESSION;
+const OPEN_SESSION = require('./open-session.action').OPEN_SESSION;
+const CLOSE_SESSION = require('./close-session.action').CLOSE_SESSION;
 
 const sessionState = (state, action) => {
     switch (action.type) {

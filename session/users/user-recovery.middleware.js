@@ -35,7 +35,6 @@ const userRecovery = (store) => (next) => (action) => {
 
             return;
         default:
-            console.log(`default for: ${action.type}`);
             next(action);
     }
 };
