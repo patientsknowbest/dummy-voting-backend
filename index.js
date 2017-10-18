@@ -34,7 +34,7 @@ const store = redux.createStore(redux.combineReducers({
                 status: sessionState(session.status, action),
                 wentWellItems: session.wentWellItems,
                 toBeImprovedItems: session.toBeImprovedItems,
-                users: userState(session.users, action),
+                users: userState(session.votes, session.users, action),
                 votes: session.votes,
                 wentWellVoteLimit: session.wentWellVoteLimit,
                 toBeImprovedVoteLimit: session.toBeImprovedVoteLimit
@@ -115,7 +115,7 @@ function handleUncategorizedVote(response) {
     });
 }
 
-function voteWithOpenSession(request, response) {
+function handleVote(request, response) {
 
     const itemId = parseInt(request.params.itemId);
     const userId = request.params.userId;
@@ -164,30 +164,51 @@ store.subscribe(() => {
             from: state.session.status,
             to: newState.session.status
         });
-    } else if (state.session.users.connected.length !== newState.session.users.connected.length) {
+    } else if (newState.session.users !== undefined && (state.session.users.connected.length !== newState.session.users.connected.length)) {
         if (state.session.users.connected.length < newState.session.users.connected.length) {
-            // user(s) left
-            const removedUsers = _.difference(newState.session.users.connected, state.session.users.connected);
+            // user joined
+            let addedUser = _.difference(newState.session.users.connected, state.session.users.connected)[0];
             broadcast({
-                message: `participant list has changed (${newState.session.users.connected.length})`,
-                removedUsers: removedUsers
+                message: `User added to participant list (${newState.session.users.connected.length})`,
+                addedUser: addedUser,
+                userCount: newState.session.users.connected.length
             });
         } else {
-            // user(s) joined
-            const addedUsers = _.difference(state.session.users.connected, newState.session.users.connected);
+            // user left
+            let removedUser = _.difference(state.session.users.connected, newState.session.users.connected)[0];
             broadcast({
-                message: `participant list has changed (${newState.session.users.connected.length})`,
-                addedUsers: addedUsers
+                message: `User removed from participant list (${newState.session.users.connected.length})`,
+                removedUser: removedUser,
+                userCount: newState.session.users.connected.length
             });
         }
 
         console.log(`Connected users: ${newState.session.users.connected}`);
 
-    } else if ('' !== newState.session.users.recovered) {
+    } else if (newState.session.users !== undefined && ('' !== newState.session.users.recovered)) {
         sendTo({message: 'blah'}, newState.session.users.recovered);
         store.dispatch(userUpdated(newState.session.users.recovered));
     } else if (state.session.votes.length !== newState.session.votes.length) {
-        broadcast({action: 'vote_progress_update'});
+        if (state.session.votes.length < newState.session.votes.length) {
+            // vote added
+            let addedVote = _.difference(newState.session.votes, state.session.votes)[0];
+            broadcast({
+                action: 'vote_progress_update',
+                message: `Vote added to votes list (${newState.session.votes.length})`,
+                addedVote: addedVote,
+                voteCount: newState.session.votes.length
+
+            });
+        } else {
+            // vote removed
+            let removedVote = _.difference(state.session.votes, newState.session.votes)[0];
+            broadcast({
+                action: 'vote_progress_update',
+                message: `Vote removed from votes list (${newState.session.votes.length})`,
+                removedVote: removedVote,
+                voteCount: newState.session.votes.length
+            });
+        }
         console.log(`Vote update broadcaster`);
     } else {
         console.log(`something else.`);
@@ -207,7 +228,7 @@ rest.post('/session/close', (request, response) => {
 
 rest.post('/vote/:itemId/user-id/:userId', (request, response) => {
     if (state.session.status === 'OPENED') {
-        voteWithOpenSession(request,response);
+        handleVote(request,response);
     } else {
         handleSessionNotOpened(response);
     }

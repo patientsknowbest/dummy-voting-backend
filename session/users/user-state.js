@@ -5,8 +5,9 @@ const DISCONNECTING = require('./user-disconnecting.action').DISCONNECTING;
 const USER_RECOVERED = require('./user-recovered.action').USER_RECOVERED;
 const USER_GONE = require('./user-gone.action').USER_GONE;
 const USER_UPDATED = require('./recovered-user-updated.action').USER_UPDATED;
+const UP_VOTE = require('../vote/upvote.action').UP_VOTE;
 
-const userState = (users, action) => {
+const userState = (votes, users, action) => {
     switch (action.type) {
         case JOINING_SESSION:
             let userId = action.userId;
@@ -45,6 +46,10 @@ const userState = (users, action) => {
             return Object.assign({}, users, {
                 recovered: ''
             });
+            break;
+        case UP_VOTE:
+            console.log(`${action.userId} voted for ${action.itemId}`);
+            // TODO: need to update the list of votes
             break;
         default:
             return users;
