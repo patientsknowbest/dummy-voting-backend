@@ -20,7 +20,7 @@ const voteState = (votes, action) => {
         case DOWN_VOTE:
             const voteIndex = _.findIndex(votes, (vote) => vote.itemId === action.itemId && vote.userId === action.userId);
 
-            if (voteIndex >= 0) {
+            if (voteIndex >= -1) {
                 const newVotes = votes.slice(0);
                 newVotes.splice(voteIndex, 1);
                 return newVotes;

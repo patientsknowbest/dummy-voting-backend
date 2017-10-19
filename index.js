@@ -14,7 +14,7 @@ const rest = express.Router();
 
 const wss = require('express-ws')(app);
 
-const openSession = require('./session/status/open-session.action');
+const openSession = require('./session/status/open-session.action');``
 const closeSession = require('./session/status/close-session.action');
 const sessionState = require('./session/status/session-state.reducer');
 
@@ -94,7 +94,7 @@ function handleWentWellVote(response, votedItemsByUser, wentWellItemIds, itemId,
         response.status(400);
         response.send({
             errors: [
-                {errorCode: 'all.available.vote.in.went.well.category.is.used', description: 'Item is neither in went well nor in to be improved category.'}
+                {errorCode: 'all.available.vote.in.went.well.category.is.used', description: 'You have used all your votes for the went well category.'}
             ]
         });
     }
@@ -125,6 +125,15 @@ function handleUncategorizedVote(response) {
     });
 }
 
+function handleDuplicateVote(response) {
+    response.status(400);
+    response.send({
+        errors: [
+            {errorCode: 'duplicate.vote', description: 'Cannot vote for the same item twice.'}
+        ]
+    });
+}
+
 function handleVote(request, response) {
 
     const itemId = parseInt(request.params.itemId);
@@ -133,10 +142,16 @@ function handleVote(request, response) {
     const state = store.getState();
 
     const votedItemsByUser = _
-        .chain(state.votes)
+        .chain(state.session.votes)
         .filter((vote) => vote.userId === userId)
         .map((vote) => vote.itemId)
         .value();
+
+    if (votedItemsByUser.includes(itemId)) {
+        // This is a duplicate of an existing vote
+        handleDuplicateVote(response);
+        return;
+    }
 
     const wentWellItemIds = _.map(state.session.wentWellItems, 'id');
     const toBeImprovedItemIds = _.map(state.session.toBeImprovedItems, 'id');
@@ -250,12 +265,20 @@ rest.post('/vote/:itemId/user-id/:userId', (request, response) => {
 rest.delete('/vote/:itemId/user-id/:userId', (request, response) => {
     if (state.session.status === 'OPENED') {
 
-        const userId = parseInt(request.params.userId);
-        const itemId = parseInt(request.params.itemId);
+        let deleteUserId = request.params.userId;
+        let deleteItemId = parseInt(request.params.itemId, 10);
 
-        // FIXME: validate state before dispatching event.
-        store.dispatch(downVote(userId, itemId));
-        response.send({ok: true});
+        let voteIndex = _.findIndex(state.session.votes, (vote) => vote.itemId === deleteItemId && vote.userId === deleteUserId, 0);
+        if (voteIndex !== -1) {
+            store.dispatch(downVote(deleteUserId, deleteItemId));
+            response.send({ok: true});
+        } else {
+            response.send({
+                errors: [
+                    {errorCode: 'vote.not.found', description: `Cannot delete vote (${deleteItemId}).`}
+                ]
+            })
+        }
     } else {
         handleSessionNotOpened(response);
     }
