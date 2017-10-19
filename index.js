@@ -134,6 +134,14 @@ function handleDuplicateVote(response) {
     });
 }
 
+function votedItemsByUser(userId, votes) {
+    return _
+        .chain(votes)
+        .filter((vote) => vote.userId === userId)
+        .map((vote) => vote.itemId)
+        .value();
+}
+
 function handleVote(request, response) {
 
     const itemId = parseInt(request.params.itemId);
@@ -141,13 +149,9 @@ function handleVote(request, response) {
 
     const state = store.getState();
 
-    const votedItemsByUser = _
-        .chain(state.session.votes)
-        .filter((vote) => vote.userId === userId)
-        .map((vote) => vote.itemId)
-        .value();
+    let votedItemsByUserVar = votedItemsByUser(userId, state.session.votes);
 
-    if (votedItemsByUser.includes(itemId)) {
+    if (votedItemsByUserVar.includes(itemId)) {
         // This is a duplicate of an existing vote
         handleDuplicateVote(response);
         return;
@@ -160,12 +164,25 @@ function handleVote(request, response) {
     const isInToBeImprovedCategory = _.filter(toBeImprovedItemIds, (toBeImprovedItemId) => itemId === toBeImprovedItemId).length > 0;
 
     if (isInWentWellCategory) {
-        handleWentWellVote(response, votedItemsByUser, wentWellItemIds, itemId, userId);
+        handleWentWellVote(response, votedItemsByUserVar, wentWellItemIds, itemId, userId);
     } else if (isInToBeImprovedCategory) {
-        handleToBeImprovedVote(response, votedItemsByUser, toBeImprovedItemIds, itemId, userId);
+        handleToBeImprovedVote(response, votedItemsByUserVar, toBeImprovedItemIds, itemId, userId);
     } else {
         handleUncategorizedVote(response);
     }
+}
+
+function isConnectedUser(userId) {
+    return store.getState().session.users.connected.indexOf(userId) > -1;
+}
+
+function handleInvalidUser(response, userId) {
+    response.status(400);
+    response.send({
+        errors: [
+            {errorCode: 'user.not.connected', description: `User is not connected (${userId}).`}
+        ]
+    })
 }
 
 function handleSessionNotOpened(response) {
@@ -215,21 +232,30 @@ store.subscribe(() => {
         if (state.session.votes.length < newState.session.votes.length) {
             // vote added
             let addedVote = _.difference(newState.session.votes, state.session.votes)[0];
+            let newVoteUserId = addedVote.userId;
+            // Get total number of votes for user (toBeImproved + wentWell)
+            const totalVotesForUser = votedItemsByUser(newVoteUserId, newState.session.votes).length;
+            let totalAllowedVotes = parseFloat(newState.session.toBeImprovedVoteLimit + newState.session.wentWellVoteLimit);
+            let voteProgress = totalVotesForUser / totalAllowedVotes;
             broadcast({
                 action: 'vote_progress_update',
-                message: `Vote added to votes list (${newState.session.votes.length})`,
-                addedVote: addedVote,
-                voteCount: newState.session.votes.length
-
+                message: `User (${newVoteUserId}) up-voted`,
+                userId: newVoteUserId,
+                voteProgress: voteProgress
             });
         } else {
             // vote removed
             let removedVote = _.difference(state.session.votes, newState.session.votes)[0];
+            let newVoteUserId = removedVote.userId;
+            // Get total number of votes for user (toBeImproved + wentWell)
+            const totalVotesForUser = votedItemsByUser(newVoteUserId, newState.session.votes).length;
+            let totalAllowedVotes = parseFloat(newState.session.toBeImprovedVoteLimit + newState.session.wentWellVoteLimit);
+            let voteProgress = totalVotesForUser / totalAllowedVotes;
             broadcast({
                 action: 'vote_progress_update',
-                message: `Vote removed from votes list (${newState.session.votes.length})`,
-                removedVote: removedVote,
-                voteCount: newState.session.votes.length
+                message: `User (${newVoteUserId}) down-voted`,
+                userId: newVoteUserId,
+                voteProgress: voteProgress
             });
         }
         console.log(`Vote update broadcaster`);
@@ -255,10 +281,16 @@ rest.post('/vote/:itemId/user-id/:userId', (request, response) => {
         unsubscribe();
     });
 
-    if (state.session.status === 'OPENED') {
-        handleVote(request, response);
+    let userId = request.params.userId;
+
+    if (isConnectedUser(request.params.userId)) {
+        if (state.session.status === 'OPENED') {
+            handleVote(request, response);
+        } else {
+            handleSessionNotOpened(response);
+        }
     } else {
-        handleSessionNotOpened(response);
+        handleInvalidUser(response, userId);
     }
 });
 
