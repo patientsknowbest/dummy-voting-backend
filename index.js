@@ -43,7 +43,8 @@ const store = redux.createStore(redux.combineReducers({
                 wentWellItems: session.wentWellItems,
                 toBeImprovedItems: session.toBeImprovedItems,
                 wentWellVoteLimit: session.wentWellVoteLimit,
-                toBeImprovedVoteLimit: session.toBeImprovedVoteLimit
+                toBeImprovedVoteLimit: session.toBeImprovedVoteLimit,
+                voteProgress: session.voteProgress
             }
         } else {
             return initialState.session;
@@ -68,6 +69,18 @@ function broadcast(message) {
     });
 }
 
+function broadcastVoteResult() {
+    let voteCounts = _(state.session.votes).countBy('itemId')
+        .map((count, itemId) => ({ itemId, count }))
+        .value();
+
+    broadcast({
+        action: 'vote_result',
+        message: `Session closed and vote result available`,
+        voteResult: voteCounts
+    });
+}
+
 function broadcastEveryOneBut(message, userId) {
     wss.getWss().clients.forEach((client) => {
         if (client.readyState === 1 && client.userId !== userId) {
@@ -82,6 +95,19 @@ function sendTo(message, userId) {
             client.send(JSON.stringify(message))
         }
     });
+}
+
+function sendSessionStateSnapshot(userId) {
+    let message = {
+        messageCode: 'current.session.state',
+        message: 'Snapshot of current session state',
+        sessionStatus: state.session.status,
+        votableToBeImprovedItems: state.session.toBeImprovedItems,
+        votableDidWellItems: state.session.wentWellItems,
+        connectedUsers: state.session.users.connected,
+        voteProgress: state.session.voteProgress
+    };
+    sendTo(message, userId);
 }
 
 function handleWentWellVote(response, votedItemsByUser, wentWellItemIds, itemId, userId) {
@@ -176,11 +202,24 @@ function isConnectedUser(userId) {
     return store.getState().session.users.connected.indexOf(userId) > -1;
 }
 
+function isOrganizer(userId) {
+    return store.getState().users[userId].roles.indexOf('ORGANIZER') > -1;
+}
+
 function handleInvalidUser(response, userId) {
     response.status(400);
     response.send({
         errors: [
             {errorCode: 'user.not.connected', description: `User is not connected (${userId}).`}
+        ]
+    })
+}
+
+function handleNonOrganizerUserAttemptToChangeSessionState(response, userId) {
+    response.status(403);
+    response.send({
+        errors: [
+            {errorCode: 'forbidden', description: `User is forbidden to change session state (${userId}).`}
         ]
     })
 }
@@ -208,7 +247,9 @@ store.subscribe(() => {
         if (state.session.users.connected.length < newState.session.users.connected.length) {
             // user joined
             let addedUser = _.difference(newState.session.users.connected, state.session.users.connected)[0];
+            sendSessionStateSnapshot(addedUser);
             broadcast({
+                action: 'participant_list_change',
                 message: `User added to participant list (${newState.session.users.connected.length})`,
                 addedUser: addedUser,
                 userCount: newState.session.users.connected.length
@@ -217,6 +258,7 @@ store.subscribe(() => {
             // user left
             let removedUser = _.difference(state.session.users.connected, newState.session.users.connected)[0];
             broadcast({
+                action: 'participant_list_change',
                 message: `User removed from participant list (${newState.session.users.connected.length})`,
                 removedUser: removedUser,
                 userCount: newState.session.users.connected.length
@@ -226,8 +268,7 @@ store.subscribe(() => {
         console.log(`Connected users: ${newState.session.users.connected}`);
 
     } else if (newState.session.users !== undefined && ('' !== newState.session.users.recovered)) {
-        // TODO: for the recovered user we need to send a snapshot of the server state.
-        sendTo({message: 'blah'}, newState.session.users.recovered);
+        sendSessionStateSnapshot(newState.session.users.recovered);
         store.dispatch(userUpdated(newState.session.users.recovered));
     } else if (state.session.votes.length !== newState.session.votes.length) {
         if (state.session.votes.length < newState.session.votes.length) {
@@ -238,6 +279,10 @@ store.subscribe(() => {
             const totalVotesForUser = votedItemsByUser(newVoteUserId, newState.session.votes).length;
             let totalAllowedVotes = parseFloat(newState.session.toBeImprovedVoteLimit + newState.session.wentWellVoteLimit);
             let voteProgress = totalVotesForUser / totalAllowedVotes;
+            newState.session.voteProgress.push({
+                userId: newVoteUserId,
+                progress: voteProgress
+            });
             broadcast({
                 action: 'vote_progress_update',
                 message: `User (${newVoteUserId}) up-voted`,
@@ -247,15 +292,19 @@ store.subscribe(() => {
         } else {
             // vote removed
             let removedVote = _.difference(state.session.votes, newState.session.votes)[0];
-            let newVoteUserId = removedVote.userId;
+            let removedVoteUserId = removedVote.userId;
             // Get total number of votes for user (toBeImproved + wentWell)
-            const totalVotesForUser = votedItemsByUser(newVoteUserId, newState.session.votes).length;
+            const totalVotesForUser = votedItemsByUser(removedVoteUserId, newState.session.votes).length;
             let totalAllowedVotes = parseFloat(newState.session.toBeImprovedVoteLimit + newState.session.wentWellVoteLimit);
             let voteProgress = totalVotesForUser / totalAllowedVotes;
+            newState.session.voteProgress.push({
+                userId: removedVoteUserId,
+                progress: voteProgress
+            });
             broadcast({
                 action: 'vote_progress_update',
-                message: `User (${newVoteUserId}) down-voted`,
-                userId: newVoteUserId,
+                message: `User (${removedVoteUserId}) down-voted`,
+                userId: removedVoteUserId,
                 voteProgress: voteProgress
             });
         }
@@ -267,14 +316,32 @@ store.subscribe(() => {
     state = newState;
 });
 
-rest.post('/session/start', (request, response) => {
-    store.dispatch(openSession());
-    response.send({ok: true});
+rest.post('/session/start/user-id/:userId', (request, response) => {
+    let userId = request.params.userId;
+    if (isConnectedUser(userId, true)) {
+        if (isOrganizer(userId)) {
+            store.dispatch(openSession());
+            response.send({ok: true});
+        } else {
+            handleNonOrganizerUserAttemptToChangeSessionState(response, userId);
+        }
+    } else {
+        handleInvalidUser(response, userId);
+    }
 });
-rest.post('/session/close', (request, response) => {
-    // TODO: we need to send out to all participants the vote counts.
-    store.dispatch(closeSession());
-    response.send({ok: true});
+rest.post('/session/close/user-id/:userId', (request, response) => {
+    let userId = request.params.userId;
+    if (isConnectedUser(userId, true)) {
+        if (isOrganizer(userId)) {
+            store.dispatch(closeSession());
+            broadcastVoteResult();
+            response.send({ok: true});
+        } else {
+            handleNonOrganizerUserAttemptToChangeSessionState(response, userId);
+        }
+    } else {
+        handleInvalidUser(response, userId);
+    }
 });
 
 rest.post('/vote/:itemId/user-id/:userId', (request, response) => {
@@ -317,9 +384,6 @@ rest.delete('/vote/:itemId/user-id/:userId', (request, response) => {
         handleSessionNotOpened(response);
     }
 });
-
-// TODO: Either add votalbe items to the broadcasted messages (that are sent after Participant connects)
-// OR add a REST API endpoint that the SPA can call to get all the items.
 
 app.use('/api', rest);
 
