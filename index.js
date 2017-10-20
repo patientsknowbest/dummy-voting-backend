@@ -14,7 +14,7 @@ const rest = express.Router();
 
 const wss = require('express-ws')(app);
 
-const openSession = require('./session/status/open-session.action');``
+const openSession = require('./session/status/open-session.action');
 const closeSession = require('./session/status/close-session.action');
 const sessionState = require('./session/status/session-state.reducer');
 
@@ -226,6 +226,7 @@ store.subscribe(() => {
         console.log(`Connected users: ${newState.session.users.connected}`);
 
     } else if (newState.session.users !== undefined && ('' !== newState.session.users.recovered)) {
+        // TODO: for the recovered user we need to send a snapshot of the server state.
         sendTo({message: 'blah'}, newState.session.users.recovered);
         store.dispatch(userUpdated(newState.session.users.recovered));
     } else if (state.session.votes.length !== newState.session.votes.length) {
@@ -271,6 +272,7 @@ rest.post('/session/start', (request, response) => {
     response.send({ok: true});
 });
 rest.post('/session/close', (request, response) => {
+    // TODO: we need to send out to all participants the vote counts.
     store.dispatch(closeSession());
     response.send({ok: true});
 });
@@ -315,6 +317,9 @@ rest.delete('/vote/:itemId/user-id/:userId', (request, response) => {
         handleSessionNotOpened(response);
     }
 });
+
+// TODO: Either add votalbe items to the broadcasted messages (that are sent after Participant connects)
+// OR add a REST API endpoint that the SPA can call to get all the items.
 
 app.use('/api', rest);
 
