@@ -318,7 +318,7 @@ rest.delete('/vote/:itemId/user-id/:userId', (request, response) => {
     }
 });
 
-// TODO: Either add votalbe items to the broadcasted messages (that are sent after Participant connects)
+// TODO: Either add votealbe items to the broadcasted messages (that are sent after Participant connects)
 // OR add a REST API endpoint that the SPA can call to get all the items.
 
 app.use('/api', rest);

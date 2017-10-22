@@ -1,0 +1,196 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width">
+
+    <title>PKB Loader</title>
+
+    <style>
+
+    </style>
+
+  </head>
+
+  <body onload="draw();">
+    <canvas id="canvas" width="500" height="500"></canvas>
+
+
+    <script type="application/javascript">
+        function draw() {
+            const canvas = document.getElementById('canvas');
+
+            const oval = (context, x, y, size) => {
+                context.beginPath();
+                context.moveTo(x + 2 * size, y);
+                context.lineTo(x + size, y);
+                context.arc(x + size, y + size, size, 1.5 * Math.PI, 0.5 * Math.PI, true);
+                context.lineTo(x + 3 * size, y + 2 * size);
+                context.arc(x + 3 * size, y + size, size, 0.5 * Math.PI, 1.5 * Math.PI, true);
+                context.lineTo(x + 2 * size, y);
+                context.stroke();
+            };
+
+            const pkb = (context, x, y, size) => {
+                const width = 4 * size;
+                const height = 2 * size;
+                const tx = x + width * 0.5;
+                const ty = (y + height * 0.5);
+                const lineWidth = size * 0.65;
+
+                context.save();
+                context.translate(0, size * 0.75 + lineWidth / 2);
+                context.lineWidth = lineWidth;
+
+                context.save();
+                context.translate(1.5 * size, 0);
+
+                context.save();
+                context.strokeStyle = 'rgba(0, 85, 170, .5)';
+                context.translate(tx, ty);
+                context.rotate((Math.PI / 180) * -45);
+                context.translate(-tx, -ty);
+                oval(context, x, y, size, context.fill);
+                context.restore();
+
+                context.restore();
+
+                context.save();
+                context.strokeStyle = 'rgba(180,230,255, .5)';
+                context.translate(tx, ty);
+                context.rotate((Math.PI / 180) * 45);
+                context.translate(-tx, -ty);
+                oval(context, x, y, size, context.fill);
+                context.restore();
+
+                context.restore();
+            };
+
+
+            const size = 50;
+
+            const ovalLength = 2 * size * (2 + Math.PI);
+
+            const pkbLogoPathLength = 2 * ovalLength;
+            const animationLength = 2 * pkbLogoPathLength;
+
+            const animationLengthInSeconds = .75;
+
+            const frameRate = 24.0;
+
+            const totalFrameCount = frameRate * animationLengthInSeconds;
+
+            const tick = 1000 / frameRate;
+
+            const diff = (tick * 1000 - Math.trunc(tick * 1000)) * totalFrameCount;
+
+            const linearSpeed = animationLength / totalFrameCount;
+            const angularSpeed = linearSpeed / (2.0 * Math.PI * size);
+
+
+            console.log(`Animation will take ${animationLengthInSeconds} seconds, will draw a total of ${totalFrameCount} frames.`);
+            console.log(`A draw event will happen in every ${tick} milliseconds.`);
+            console.log(`Line spread speed ${linearSpeed} and angular speed: ${angularSpeed}.`);
+
+
+            const arcSegment01Length = ((.75 * Math.PI * size) / pkbLogoPathLength) * totalFrameCount;
+            const lineSegmentLength = ((2 * size) / animationLength) * totalFrameCount;
+            const arcSegment02Length = ((Math.PI * size) / pkbLogoPathLength) * totalFrameCount;
+            const arcSegment03Length = ((0.25 * Math.PI * size) / pkbLogoPathLength) * totalFrameCount;
+
+            const archOneStartFrame = 0.0;
+            const lineOneStartFrame = arcSegment01Length;
+            const archTwoStartFrame = lineOneStartFrame + lineSegmentLength;
+            const lineTwoStartFrame = archTwoStartFrame + arcSegment02Length;
+            const archThreeStartFrame = lineTwoStartFrame + lineSegmentLength;
+            const archFourStartFrame = archThreeStartFrame + arcSegment03Length;
+
+            let aaa = 0.25;
+            let bbb = 2 * size;
+            let ccc = 1.5;
+            let ddd = 0;
+            let eee = 0.5;
+
+            function gzsnyf(context, time) {
+                context.clearRect(0, 0, 500, 500);
+                context.save();
+                context.beginPath();
+
+                if (time <= totalFrameCount / 2.0) { // grow
+                    if (time >= archOneStartFrame) {
+                        if (time < lineOneStartFrame) {
+                            aaa = aaa - angularSpeed;
+                            aaa = aaa < 0 ? Math.max(aaa, -0.5) : aaa;
+                        } else {
+                            aaa = -0.5;
+                        }
+                        context.arc(3 * size, size, size, 0.25 * Math.PI, aaa * Math.PI, true);
+                    }
+
+                    if (time >= lineOneStartFrame) {
+                        if (time < archTwoStartFrame) {
+                            bbb -= linearSpeed;
+                        }
+//                        bbb = Math.max(bbb, size);
+                        context.lineTo(size + bbb, 0);
+                    }
+
+                    if (time >= archTwoStartFrame) {
+                        if (time < lineTwoStartFrame) {
+                            ccc -= angularSpeed;
+                        }
+                        ccc = Math.max(ccc, 0.5);
+                        context.arc(size, size, size, 1.5 * Math.PI, ccc * Math.PI, true);
+                    }
+
+                    if (time >= lineTwoStartFrame) {
+                        if (time < archThreeStartFrame) {
+                            ddd += linearSpeed;
+                        }
+                        ddd = Math.min(ddd, 2 * size);
+                        context.lineTo(size + ddd, 2 * size);
+
+                    }
+
+                    if (time >= archThreeStartFrame) {
+                        if (time <= archFourStartFrame) {
+                            eee -= angularSpeed;
+                        }
+                        eee = Math.max(eee, 0.25);
+                        context.arc(3 * size, size, size, 0.5 * Math.PI, eee * Math.PI, true);
+                    }
+                } else { // shrink
+//                    console.log('srinking');
+                }
+
+                context.stroke();
+                context.restore();
+            }
+
+            if (canvas.getContext) {
+                const context = canvas.getContext('2d');
+
+//                context.moveTo(3 * size + Math.sin(Math.PI / 4) * size, size + Math.cos(Math.PI / 4) * size);
+//                context.lineTo(25, 25);
+
+                let t = 0;
+                const interval = setInterval(() => {
+                    t = (t + 1 + totalFrameCount) % totalFrameCount;
+                    gzsnyf(context, t);
+                }, tick);
+
+                setTimeout(() => {
+                    clearInterval(interval);
+                    console.log('Done');
+                }, animationLengthInSeconds * 1000 - diff);
+
+
+//                                pkb(context, 0, 0, 25);
+            }
+        }
+    </script>
+
+  </body>
+</html>
