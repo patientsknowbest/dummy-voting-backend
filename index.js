@@ -98,13 +98,22 @@ function sendTo(message, userId) {
 }
 
 function sendSessionStateSnapshot(userId) {
+
+    let connectedUsersWithNames = [];
+
+    for (let count = 0; count < state.session.users.connected.length; count++) {
+        let userId = state.session.users.connected[count];
+        let name = store.getState().users[userId].name;
+        connectedUsersWithNames.push({userId: userId, userName: name});
+    }
+
     let message = {
         messageCode: 'current.session.state',
         message: 'Snapshot of current session state',
         sessionStatus: state.session.status,
         votableToBeImprovedItems: state.session.toBeImprovedItems,
         votableDidWellItems: state.session.wentWellItems,
-        connectedUsers: state.session.users.connected,
+        connectedUsers: connectedUsersWithNames,
         voteProgress: state.session.voteProgress
     };
     sendTo(message, userId);
