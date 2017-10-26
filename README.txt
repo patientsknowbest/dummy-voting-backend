@@ -61,16 +61,16 @@ http://localhost:1337/test.html?userId=62a370c4
 
 Start session
 
-curl -XPOST -d '{"userId":"060b0657-7cf1-48f3-966e-f3b04e66a8fb"}'  -H "Content-Type: application/json" http://localhost:1337/api/session/start/userId/62a36ee4
+curl -XPOST -H "Content-Type: application/json" http://localhost:1337/api/session/start/user-id/62a36ee4
 
 User adds vote
 
-curl -XPOST -d '{"userId":"060b0657-7cf1-48f3-966e-f3b04e66a8fb"}'  -H "Content-Type: application/json" http://localhost:1337/api/vote/1/user-id/62a36a5c
+curl -XPOST -H "Content-Type: application/json" http://localhost:1337/api/vote/1/user-id/62a36a5c
 
 User removes vote
 
-curl -XDELETE -d '{"userId":"060b0657-7cf1-48f3-966e-f3b04e66a8fb"}'  -H "Content-Type: application/json" http://localhost:1337/api/vote/1/user-id/62a36a5c
+curl -XDELETE -H "Content-Type: application/json" http://localhost:1337/api/vote/1/user-id/62a36a5c
 
 Organizer close session
 
-curl -XPOST -d '{"userId":"060b0657-7cf1-48f3-966e-f3b04e66a8fb"}'  -H "Content-Type: application/json" http://localhost:1337/api/session/close/userId/62a36ee4
+curl -XPOST -H "Content-Type: application/json" http://localhost:1337/api/session/close/user-id/62a36ee4
