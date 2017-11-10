@@ -10,11 +10,14 @@
   "license": "ISC",
   "dependencies": {
     "bootstrap": "^3.3.7",
+    "cors": "^2.8.4",
     "express": "^4.16.2",
     "express-ws": "^3.0.0",
     "jquery": "^3.2.1",
     "lodash": "^4.17.4",
+    "react-hot-loader": "^3.1.1",
     "redux": "^3.7.2",
-    "redux-subscriber": "^1.1.0"
+    "redux-subscriber": "^1.1.0",
+    "redux-thunk": "^2.2.0"
   }
 }

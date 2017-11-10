@@ -22,7 +22,7 @@ module.exports = {
             disconnected: []
         },
         votes: [],
-        voteProgress: [],
+        voteProgress: {},
         wentWellVoteLimit: 3,
         toBeImprovedVoteLimit: 3
     },

@@ -6,9 +6,12 @@ const subscriber = require('redux-subscriber');
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
+const cors = require('cors');
+
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
+app.use(cors());
 
 const rest = express.Router();
 
@@ -255,7 +258,7 @@ store.subscribe(() => {
     } else if (newState.session.users !== undefined && (state.session.users.connected.length !== newState.session.users.connected.length)) {
         if (state.session.users.connected.length < newState.session.users.connected.length) {
             // user joined
-            let addedUser = _.difference(newState.session.users.connected, state.session.users.connected)[0];
+            let addedUser = _.difference(newState.session.users.connected, state.session.users.connected);
             sendSessionStateSnapshot(addedUser);
             broadcast({
                 action: 'participant_list_change',
@@ -288,10 +291,7 @@ store.subscribe(() => {
             const totalVotesForUser = votedItemsByUser(newVoteUserId, newState.session.votes).length;
             let totalAllowedVotes = parseFloat(newState.session.toBeImprovedVoteLimit + newState.session.wentWellVoteLimit);
             let voteProgress = totalVotesForUser / totalAllowedVotes;
-            newState.session.voteProgress.push({
-                userId: newVoteUserId,
-                progress: voteProgress
-            });
+            newState.session.voteProgress[newVoteUserId] = voteProgress;
             broadcast({
                 action: 'vote_progress_update',
                 message: `User (${newVoteUserId}) up-voted`,
@@ -306,10 +306,7 @@ store.subscribe(() => {
             const totalVotesForUser = votedItemsByUser(removedVoteUserId, newState.session.votes).length;
             let totalAllowedVotes = parseFloat(newState.session.toBeImprovedVoteLimit + newState.session.wentWellVoteLimit);
             let voteProgress = totalVotesForUser / totalAllowedVotes;
-            newState.session.voteProgress.push({
-                userId: removedVoteUserId,
-                progress: voteProgress
-            });
+            newState.session.voteProgress[removedVoteUserId] = voteProgress;
             broadcast({
                 action: 'vote_progress_update',
                 message: `User (${removedVoteUserId}) down-voted`,
