@@ -261,18 +261,19 @@ store.subscribe(() => {
             let addedUser = _.difference(newState.session.users.connected, state.session.users.connected);
             sendSessionStateSnapshot(addedUser);
             broadcast({
-                action: 'participant_list_change',
+                action: 'participant_list_addition',
                 message: `User added to participant list (${newState.session.users.connected.length})`,
-                addedUser: addedUser,
+                userId: addedUser,
+                userName: store.getState().users[addedUser].name,
                 userCount: newState.session.users.connected.length
             });
         } else {
             // user left
             let removedUser = _.difference(state.session.users.connected, newState.session.users.connected)[0];
             broadcast({
-                action: 'participant_list_change',
+                action: 'participant_list_deletion',
                 message: `User removed from participant list (${newState.session.users.connected.length})`,
-                removedUser: removedUser,
+                userId: removedUser,
                 userCount: newState.session.users.connected.length
             });
         }
