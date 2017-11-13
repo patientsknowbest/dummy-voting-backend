@@ -25,7 +25,7 @@ const userRecovery = (store) => (next) => (action) => {
         case DISCONNECTING:
             action.timeout = setTimeout(() => {
                 store.dispatch(checkIfGone(action.userId));
-            }, 3000);
+            }, 5000);
             next(action);
             break;
         case CHECK_IF_GONE:

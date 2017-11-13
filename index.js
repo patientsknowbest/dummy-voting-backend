@@ -111,6 +111,7 @@ function sendSessionStateSnapshot(userId) {
     }
 
     let message = {
+        action: "initial_state_transfer",
         messageCode: 'current.session.state',
         message: 'Snapshot of current session state',
         sessionStatus: state.session.status,
