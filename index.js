@@ -117,7 +117,10 @@ function sendSessionStateSnapshot(userId) {
         votableToBeImprovedItems: state.session.toBeImprovedItems,
         votableDidWellItems: state.session.wentWellItems,
         connectedUsers: connectedUsersWithNames,
-        voteProgress: state.session.voteProgress
+        voteProgress: state.session.voteProgress,
+        votedItemsByUser: votedItemsByUser(userId, state.session.votes),
+        wentWellVoteLimit: state.session.wentWellVoteLimit,
+        toBeImprovedVoteLimit: state.session.toBeImprovedVoteLimit
     };
     sendTo(message, userId);
 }

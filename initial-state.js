@@ -14,7 +14,11 @@ module.exports = {
             {id: 32, displayText: 'Regular and organized calls'},
             {id: 33, displayText: 'Well defined Teams.'}
         ],
-        toBeImprovedItems: [],
+        toBeImprovedItems: [
+            {id: 50, displayText: 'PRs'},
+            {id: 51, displayText: 'Testing'},
+            {id: 52, displayText: 'Flakyness'},
+            {id: 53, displayText: 'SCRUM'}],
         users: {
             connected: [],
             disconnecting: {},
