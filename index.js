@@ -94,8 +94,14 @@ function broadcastEveryOneBut(message, userId) {
 
 function sendTo(message, userId) {
     wss.getWss().clients.forEach((client) => {
-        if (client.readyState === 1 && client.userId === userId) {
-            client.send(JSON.stringify(message))
+        if (userId !== undefined) {
+            let localUserId = userId;
+            if (Array.isArray(userId)) {
+                localUserId = userId[0];
+            }
+            if (client.readyState === 1 && client.userId === localUserId) {
+                client.send(JSON.stringify(message))
+            }
         }
     });
 }
@@ -177,9 +183,13 @@ function handleDuplicateVote(response) {
 }
 
 function votedItemsByUser(userId, votes) {
+    let localUserId = userId;
+    if (Array.isArray(userId)) {
+        localUserId = userId[0];
+    }
     return _
         .chain(votes)
-        .filter((vote) => vote.userId === userId)
+        .filter((vote) => vote.userId === localUserId)
         .map((vote) => vote.itemId)
         .value();
 }
@@ -253,6 +263,7 @@ let state = store.getState();
 store.subscribe(() => {
     let newState = store.getState();
 
+    let sendSessionStateSnapshotTo = undefined;
     if (state.session.status !== newState.session.status) {
         broadcast({
             action: 'session_state_change',
@@ -263,7 +274,7 @@ store.subscribe(() => {
         if (state.session.users.connected.length < newState.session.users.connected.length) {
             // user joined
             let addedUser = _.difference(newState.session.users.connected, state.session.users.connected);
-            sendSessionStateSnapshot(addedUser);
+            sendSessionStateSnapshotTo = addedUser;
             broadcast({
                 action: 'participant_list_addition',
                 message: `User added to participant list (${newState.session.users.connected.length})`,
@@ -285,7 +296,7 @@ store.subscribe(() => {
         console.log(`Connected users: ${newState.session.users.connected}`);
 
     } else if (newState.session.users !== undefined && ('' !== newState.session.users.recovered)) {
-        sendSessionStateSnapshot(newState.session.users.recovered);
+        sendSessionStateSnapshotTo = newState.session.users.recovered;
         store.dispatch(userUpdated(newState.session.users.recovered));
     } else if (state.session.votes.length !== newState.session.votes.length) {
         if (state.session.votes.length < newState.session.votes.length) {
@@ -325,6 +336,10 @@ store.subscribe(() => {
     }
 
     state = newState;
+
+    if (sendSessionStateSnapshotTo !== undefined) {
+        sendSessionStateSnapshot(sendSessionStateSnapshotTo);
+    }
 });
 
 rest.post('/session/start/user-id/:userId', (request, response) => {
